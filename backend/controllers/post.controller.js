@@ -160,32 +160,43 @@ const likePost = async (req, res) => {
 // DISLIKE POST
 const dislikePost = async (req, res) => {
     try {
-        const post = await Post.findById(req.params.id);
-        if (!post) return res.status(404).json({ message: "Post not found" });
+        const postId = req.params.id
 
-        const userId = req.user.id;
+        const post = await Post.findById(postId)
 
-        const hasDisliked = post.dislikes.some(id => id.toString() === userId);
-
-        if (hasDisliked) {
-            post.dislikes = post.dislikes.filter(id => id.toString() !== userId);
-        } else {
-            post.dislikes.push(userId);
-            post.likes = post.likes.filter(id => id.toString() !== userId);
+        if (!post) {
+            return res.status(404).json({
+                message: "Post not found"
+            })
         }
 
-        await post.save();
+        // OPTIONAL: if no auth yet
+        const userId = req.user?._id || "anonymous"
 
-        return res.status(200).json({
-            likes: post.likes.length,
-            dislikes: post.dislikes.length
-        });
+        // remove like if exists
+        post.likes = post.likes.filter(id => id.toString() !== userId.toString())
 
-    } catch (e) {
-        return res.status(500).json({ message: "Dislike failed" });
+        // toggle dislike
+        if (post.dislikes.includes(userId)) {
+            post.dislikes = post.dislikes.filter(id => id.toString() !== userId.toString())
+        } else {
+            post.dislikes.push(userId)
+        }
+
+        await post.save()
+
+        res.status(200).json({
+            success: true,
+            post
+        })
+
+    } catch (error) {
+        console.log("DISLIKE ERROR:", error)
+        res.status(500).json({
+            message: error.message
+        })
     }
-};
-
+}
 module.exports = {
     createPost,
     getPosts,

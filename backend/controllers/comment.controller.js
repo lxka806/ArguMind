@@ -1,42 +1,50 @@
 const Comment = require("../models/comment.model")
 const Post = require("../models/post.model")
 
-// create Comment
 const createComent = async (req, res) => {
-    try{
-        const { text } = req.body // geting "comment" from body
+    try {
+        const postId = req.params.id
+        const { text } = req.body
 
-        if (!text || text.trim().length < 2) {
+        // 1. Validate input
+        if (!text) {
             return res.status(400).json({
-                message: "Comment must be at least 2 characters."
+                message: "Comment text is required"
             })
         }
 
-        const post = await Post.findById(req.params.id) // getign post from params
-
-        if(!post){  // cheking is post is found or not  
-            return res.status(404).json({ message: "Post not found" })
+        // 2. Check post exists
+        const post = await Post.findById(postId)
+        if (!post) {
+            return res.status(404).json({
+                message: "Post not found"
+            })
         }
 
-        // creating comment for post
+        // 3. Create comment
         const comment = await Comment.create({
-            text: text.trim(),   // text that will be on the post
-            user: req.user.id,  // user that is posting comment
-            post: post._id  // Post ID 
+            text,
+            post: postId,
+            user: null // safe for now (since you removed protect)
         })
 
-        post.comments.push(comment._id) // comment is geting pushed in post Schema
+        // 4. Push into post
+        post.comments.push(comment._id)
         post.commentsCount = post.comments.length
 
-        await post.save()   // post Schemaa is saved
+        await post.save()
 
-        res.status(201).json({  /// sending message to front end
-            message: "Comment created successfully",
+        res.status(201).json({
+            success: true,
             comment
         })
 
-    }catch(e){  // if there is an Error
-        return res.status(500).json({ message: "Failed to create comment."})
+    } catch (error) {
+        console.log("CREATE COMMENT ERROR:", error)
+        res.status(500).json({
+            message: "Server error",
+            error: error.message
+        })
     }
 }
 //get comments

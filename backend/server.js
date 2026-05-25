@@ -12,14 +12,20 @@ const authRouter = require("./routes/auth.route")
 const commentRouter = require("./routes/comment.route")
 
 
-app.use(cors())
 app.use(morgan("dev"))
 app.use(express.json())
 app.use(cookieParser())
 
+app.use(cors({
+    origin: 'http://localhost:5173', // Allow only your frontend
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true // Allow cookies if you need them later
+}));
+
 app.use("/api/v1/auth", authRouter)
 app.use("/api/v1", postRouter)
 app.use("/api/v1", commentRouter)
+
 
 mongoose.connect(process.env.MONGODB_URL)
     .then(() => {
