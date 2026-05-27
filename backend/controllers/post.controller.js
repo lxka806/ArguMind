@@ -79,55 +79,6 @@ const getSinglePost = async (req, res) => {
     }
 };
 
-// EDIT POST
-const editPost = async (req, res) => {
-    try {
-        const updated = await Post.findByIdAndUpdate(
-            req.params.id,
-            {
-                $set: {
-                    ...(req.body.title && { title: req.body.title.trim() }),
-                    ...(req.body.content && { content: req.body.content.trim() }),
-                    ...(req.body.category && { category: req.body.category })
-                }
-            },
-            { new: true, runValidators: true }
-        );
-
-        if (!updated) {
-            return res.status(404).json({ message: "Post not found" });
-        }
-
-        return res.status(200).json({ post: updated });
-
-    } catch (e) {
-        return res.status(500).json({ message: "Update failed" });
-    }
-};
-
-// DELETE POST
-const deletePost = async (req, res) => {
-    try {
-        const post = await Post.findById(req.params.id);
-
-        if (!post) {
-            return res.status(404).json({ message: "Post not found" });
-        }
-
-        if (post.user.toString() !== req.user.id) {
-            return res.status(403).json({ message: "Not allowed" });
-        }
-
-        await Comment.deleteMany({ post: post._id });
-        await post.deleteOne();
-
-        return res.status(200).json({ message: "Deleted" });
-
-    } catch (e) {
-        return res.status(500).json({ message: "Delete failed" });
-    }
-};
-
 // LIKE POST
 const likePost = async (req, res) => {
     try {
@@ -160,49 +111,60 @@ const likePost = async (req, res) => {
 // DISLIKE POST
 const dislikePost = async (req, res) => {
     try {
-        const postId = req.params.id
-
-        const post = await Post.findById(postId)
+        const post = await Post.findById(req.params.id);
 
         if (!post) {
             return res.status(404).json({
                 message: "Post not found"
-            })
+            });
         }
 
-        // OPTIONAL: if no auth yet
-        const userId = req.user?._id || "anonymous"
+        if (!req.user) {
+            return res.status(401).json({
+                message: "Not logged in"
+            });
+        }
+
+        const userId = req.user.id;
+
+        const hasDisliked = post.dislikes.some(
+            id => id.toString() === userId
+        );
 
         // remove like if exists
-        post.likes = post.likes.filter(id => id.toString() !== userId.toString())
+        post.likes = post.likes.filter(
+            id => id.toString() !== userId
+        );
 
         // toggle dislike
-        if (post.dislikes.includes(userId)) {
-            post.dislikes = post.dislikes.filter(id => id.toString() !== userId.toString())
+        if (hasDisliked) {
+            post.dislikes = post.dislikes.filter(
+                id => id.toString() !== userId
+            );
         } else {
-            post.dislikes.push(userId)
+            post.dislikes.push(userId);
         }
 
-        await post.save()
+        await post.save();
 
-        res.status(200).json({
-            success: true,
-            post
-        })
+        return res.status(200).json({
+            likes: post.likes.length,
+            dislikes: post.dislikes.length
+        });
 
     } catch (error) {
-        console.log("DISLIKE ERROR:", error)
-        res.status(500).json({
-            message: error.message
-        })
+        console.log("DISLIKE ERROR:", error);
+
+        return res.status(500).json({
+            message: "Dislike failed"
+        });
     }
-}
+};
+
 module.exports = {
     createPost,
     getPosts,
     getSinglePost,
-    editPost,
-    deletePost,
     likePost,
     dislikePost
 };

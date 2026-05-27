@@ -11,20 +11,20 @@ const userSchema = new mongoose.Schema(
         fullname: {
             type: String,
             required: true,
-            lowercase: true
+            // FIXED: Removed lowercase - names should preserve case
         },
         email: {
             type: String,
             required: true,
             unique: true,
-            lowercase: true,
+            lowercase: true, // Keep this - emails are case-insensitive
             validate: [validator.isEmail, "Invalid email"]
         },
         password: {
             type: String,
             required: true,
             minlength: 6,
-            maxlength: 12,
+            // FIXED: Removed maxlength restriction (let bcrypt handle it)
             select: false
         },
         isVerified: {
@@ -43,9 +43,9 @@ userSchema.pre("save", async function () {
 });
 
 // compare password
-userSchema.methods.comparePassword = function (candidatePassword) {
+userSchema.methods.comparePassword = async function (candidatePassword) {
     if (!this.password) return false;
-    return bcrypt.compare(candidatePassword, this.password);
+    return await bcrypt.compare(candidatePassword, this.password); // FIXED: Added await
 };
 
 // email code
@@ -60,7 +60,7 @@ userSchema.methods.signToken = function () {
     return jwt.sign(
         { id: this._id },
         JWT_SECRET,
-        { expiresIn: process.env.JWT_EXPIRES_IN }
+        { expiresIn: process.env.JWT_EXPIRES_IN || "7d" } // FIXED: Added fallback
     );
 };
 

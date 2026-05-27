@@ -21,12 +21,11 @@ const createComent = async (req, res) => {
             })
         }
 
-        // 3. Create comment
         const comment = await Comment.create({
             text,
             post: postId,
-            user: null // safe for now (since you removed protect)
-        })
+            user: req.user.id
+        });
 
         // 4. Push into post
         post.comments.push(comment._id)
@@ -65,43 +64,7 @@ const getComent = async (req, res) => {
     }
 }
 
-const deleteComment = async (req, res) => {
-    try {
-        const { id, commentId } = req.params
-
-        const comment = await Comment.findById(commentId)
-
-        if (!comment) {
-            return res.status(404).json({ message: "Comment not found" })
-        }
-
-        if (comment.post.toString() !== id) {
-            return res.status(400).json({ message: "Comment does not belong to this post." })
-        }
-
-        if (comment.user.toString() !== req.user.id) {
-            return res.status(403).json({ message: "You can only delete your own comments." })
-        }
-
-        await Comment.findByIdAndDelete(commentId)
-
-        await Post.findByIdAndUpdate(id, {
-            $pull: { comments: comment._id },
-            $inc: { commentsCount: -1 }
-        })
-
-        return res.status(200).json({
-            message: "Comment deleted successfully."
-        })
-    } catch (e) {
-        return res.status(500).json({
-            message: "Failed to delete comment."
-        })
-    }
-}
-
 module.exports = {
     createComent,
     getComent,
-    deleteComment
 }

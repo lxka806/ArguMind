@@ -2,7 +2,6 @@ const User = require("../models/auth.model")
 const Post = require("../models/post.model")
 const sendEmail = require("../utils/email")
 
-
 const createSendToken = (user, statusCode, req, res, options) => {
     const token = user.signToken()
     const buildCookieOptions = (req) => {
@@ -62,7 +61,7 @@ const register = async (req, res) => {
         }
 
         const newUser = await User.create({
-            fullname,
+            fullname: fullname.trim(), // Fixed: Don't lowercase fullname
             email: normalizedEmail,
             password
         })
@@ -95,7 +94,7 @@ const register = async (req, res) => {
         })
 
     } catch (e) {
-        console.error(e)
+        console.error("Register Error", e)
         return res.status(500).json({
             message: "Could not create your account right now."
         })
@@ -123,33 +122,28 @@ const login = async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        // 1. basic validation
         if (!email || !password) {
             return res.status(400).json({
                 message: "Email and password are required."
             });
         }
 
-        // 2. find user + include password
         const user = await User.findOne({
             email: email.toLowerCase()
         }).select("+password");
 
-        // 3. user check
         if (!user) {
             return res.status(401).json({
                 message: "Invalid email or password."
             });
         }
 
-        // 4. email verification check
         if (!user.isVerified) {
             return res.status(401).json({
                 message: "Please verify your email before logging in."
             });
         }
 
-        // 5. password check (SAFE)
         const isMatch = await user.comparePassword(password);
 
         if (!isMatch) {
@@ -158,7 +152,6 @@ const login = async (req, res) => {
             });
         }
 
-        // 6. send token
         return createSendToken(user, 200, req, res);
 
     } catch (err) {
@@ -171,6 +164,7 @@ const login = async (req, res) => {
 
 const getMe = async (req, res) => {
     try {
+        // FIXED: Use req.user.id (from protect middleware)
         const user = await User.findById(req.user.id)
         const usersPosts = await Post.find({
             user: req.user.id
@@ -198,6 +192,7 @@ const getMe = async (req, res) => {
             }
         })
     } catch (e) {
+        console.error("GetMe Error:", e) // Added error logging
         return res.status(500).json({
             message: "Could not load your profile."
         })
@@ -205,12 +200,16 @@ const getMe = async (req, res) => {
 }
 
 const logout = async (req, res) => {
-    clearAuthCookie(req, res)
+    res.cookie("lg", "", {
+        httpOnly: true,
+        expires: new Date(0),
+        sameSite: "lax",
+    });
 
     return res.status(200).json({
         message: "Logged out successfully."
-    })
-}
+    });
+};
 
 module.exports = {
     register,

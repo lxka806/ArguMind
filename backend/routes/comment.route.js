@@ -6,6 +6,5 @@ const { protect } = require("../middlewares/auth.middlewares")
 
 commentRouter.post("/:id/comment", protect, createComent)
 commentRouter.get("/:id/comments", getComent)
-commentRouter.delete("/:id/comment/:commentId", protect, deleteComment)
 
 module.exports = commentRouter
