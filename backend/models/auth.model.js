@@ -11,56 +11,59 @@ const userSchema = new mongoose.Schema(
         fullname: {
             type: String,
             required: true,
-            // FIXED: Removed lowercase - names should preserve case
         },
         email: {
             type: String,
             required: true,
             unique: true,
-            lowercase: true, // Keep this - emails are case-insensitive
+            lowercase: true,
             validate: [validator.isEmail, "Invalid email"]
         },
         password: {
             type: String,
             required: true,
             minlength: 6,
-            // FIXED: Removed maxlength restriction (let bcrypt handle it)
             select: false
         },
         isVerified: {
             type: Boolean,
             default: false
         },
-        verificationCode: String
+        verificationCode: {
+            type: String,
+            default: undefined  // Make sure this field exists
+        }
     },
     { timestamps: true }
 );
 
-// hash password
-userSchema.pre("save", async function () {
-    if (!this.isModified("password")) return;
+// Hash password
+userSchema.pre("save", async function (next) {
+    if (!this.isModified("password")) return next();
     this.password = await bcrypt.hash(this.password, 10);
+    next();
 });
 
-// compare password
+// Compare password
 userSchema.methods.comparePassword = async function (candidatePassword) {
     if (!this.password) return false;
-    return await bcrypt.compare(candidatePassword, this.password); // FIXED: Added await
+    return await bcrypt.compare(candidatePassword, this.password);
 };
 
-// email code
+// Create email verification code (FIXED)
 userSchema.methods.createEmailVerificationCode = function () {
-    const code = crypto.randomBytes(32).toString("hex");
+    // Generate a simpler code for testing (6-digit number)
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
     this.verificationCode = code;
     return code;
 };
 
-// JWT
+// JWT sign token
 userSchema.methods.signToken = function () {
     return jwt.sign(
         { id: this._id },
         JWT_SECRET,
-        { expiresIn: process.env.JWT_EXPIRES_IN || "7d" } // FIXED: Added fallback
+        { expiresIn: process.env.JWT_EXPIRES_IN || "7d" }
     );
 };
 

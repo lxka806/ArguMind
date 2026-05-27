@@ -18,11 +18,34 @@ function Register() {
         setLoading(true);
 
         try {
-            const res = await API.post("/auth/register", { fullname, email, password });
-            setSuccess(res.data.message || "Account created! Please check your email to verify.");
-            setTimeout(() => navigate("/login"), 3000);
+            const res = await API.post("/auth/register", { 
+                fullname, 
+                email, 
+                password 
+            });
+            
+            console.log("Registration response:", res.data); // Debug log
+            
+            setSuccess(res.data.message || "Account created successfully! You can now login.");
+            
+            // Clear form
+            setFullname("");
+            setEmail("");
+            setPassword("");
+            
+            // Redirect to login after 2 seconds
+            setTimeout(() => {
+                navigate("/login");
+            }, 2000);
+            
         } catch (err) {
-            setError(err.response?.data?.message || "Register failed");
+            console.error("Registration error:", err);
+            console.error("Error response:", err.response); // Debug log
+            
+            const errorMessage = err.response?.data?.message || 
+                               err.response?.data?.error || 
+                               "Registration failed. Please try again.";
+            setError(errorMessage);
         } finally {
             setLoading(false);
         }
@@ -30,7 +53,7 @@ function Register() {
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-[#0F1117] px-4">
-            <div className="card max-w-md w-full animate-fade-in">
+            <div className="bg-[#1A1D24] border border-[#2A2E39] rounded-xl p-8 max-w-md w-full">
                 <div className="text-center mb-8">
                     <h1 className="text-3xl font-bold bg-gradient-to-r from-[#6366F1] to-[#4D8BFF] bg-clip-text text-transparent">
                         ArguMind
@@ -78,7 +101,11 @@ function Register() {
                         minLength="6"
                         className="w-full px-4 py-3 bg-[#0F1117] border border-[#2A2E39] rounded-lg text-[#E6E8EB] focus:outline-none focus:border-[#6366F1] focus:ring-2 focus:ring-[#6366F1]/20"
                     />
-                    <button type="submit" disabled={loading} className="primary-btn w-full py-3">
+                    <button 
+                        type="submit" 
+                        disabled={loading}
+                        className="w-full bg-[#6366F1] text-white px-6 py-3 rounded-lg font-semibold hover:bg-[#6366F1]/90 transition-all duration-200 disabled:opacity-50"
+                    >
                         {loading ? "Creating Account..." : "Register"}
                     </button>
                 </form>
