@@ -16,9 +16,19 @@ app.use(morgan("dev"))
 app.use(express.json())
 app.use(cookieParser())
 
+const allowedOrigins = [
+    "https://argumind-luka.netlify.app"
+];
+
 app.use(cors({
-    origin: 'https://argumind-luka.netlify.app/', // Allow only your frontend
-    credentials: true // Allow cookies if you need them later
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+        } else {
+        callback(new Error("CORS blocked"));
+        }
+    },
+    credentials: true
 }));
 
 app.use("/api/v1/auth", authRouter)
