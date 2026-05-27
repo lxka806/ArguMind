@@ -17,7 +17,7 @@ app.use(express.json())
 app.use(cookieParser())
 
 app.use(cors({
-    origin: 'http://localhost:5173', // Allow only your frontend
+    origin: 'https://argumind-luka.netlify.app/', // Allow only your frontend
     credentials: true // Allow cookies if you need them later
 }));
 
