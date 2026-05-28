@@ -1,11 +1,13 @@
-import axios from "axios"  // Fixed: was "axions"
+import axions from "axios"
 
 const API_URL = import.meta.env.VITE_API_URL
 
-const API = axios.create({  // Fixed: was "axions"
-    baseURL: `${API_URL}/api/v1`,
+
+const API = axions.create({
+    baseURL:`${API_URL}/api/v1`,
     withCredentials: true
 })
+
 
 API.interceptors.request.use((config) => {
     const token = localStorage.getItem("token");

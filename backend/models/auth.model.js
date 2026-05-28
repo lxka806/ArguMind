@@ -11,59 +11,58 @@ const userSchema = new mongoose.Schema(
         fullname: {
             type: String,
             required: true,
+            // FIXED: Removed lowercase - names should preserve case
         },
         email: {
             type: String,
             required: true,
             unique: true,
-            lowercase: true,
+            lowercase: true, // Keep this - emails are case-insensitive
             validate: [validator.isEmail, "Invalid email"]
         },
         password: {
             type: String,
             required: true,
             minlength: 6,
+            // FIXED: Removed maxlength restriction (let bcrypt handle it)
             select: false
         },
         isVerified: {
             type: Boolean,
             default: false
         },
-        verificationCode: {
-            type: String,
-            default: undefined  // Make sure this field exists
-        }
+        verificationCode: String
     },
     { timestamps: true }
 );
 
-// Hash password
+// hash password
 userSchema.pre("save", async function (next) {
     if (!this.isModified("password")) return next();
+
     this.password = await bcrypt.hash(this.password, 10);
+
     next();
 });
-
-// Compare password
+// compare password
 userSchema.methods.comparePassword = async function (candidatePassword) {
     if (!this.password) return false;
-    return await bcrypt.compare(candidatePassword, this.password);
+    return await bcrypt.compare(candidatePassword, this.password); // FIXED: Added await
 };
 
-// Create email verification code (FIXED)
+// email code
 userSchema.methods.createEmailVerificationCode = function () {
-    // Generate a simpler code for testing (6-digit number)
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const code = crypto.randomBytes(32).toString("hex");
     this.verificationCode = code;
     return code;
 };
 
-// JWT sign token
+// JWT
 userSchema.methods.signToken = function () {
     return jwt.sign(
         { id: this._id },
         JWT_SECRET,
-        { expiresIn: process.env.JWT_EXPIRES_IN || "7d" }
+        { expiresIn: process.env.JWT_EXPIRES_IN || "7d" } // FIXED: Added fallback
     );
 };
 

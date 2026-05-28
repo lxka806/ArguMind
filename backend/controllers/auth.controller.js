@@ -1,214 +1,227 @@
-const User = require("../models/auth.model");
-const Post = require("../models/post.model");
+const User = require("../models/auth.model")
+const Post = require("../models/post.model")
+const sendEmail = require("../utils/email")
 
-// -------------------- TOKEN + COOKIE --------------------
-const createSendToken = (user, statusCode, req, res) => {
+const createSendToken = (user, statusCode, req, res, options) => {
+    console.log("CREATE TOKEN START");
+
     const token = user.signToken();
+
+    console.log("TOKEN CREATED");
 
     const cookieOptions = {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
-        maxAge: 7 * 24 * 60 * 60 * 1000,
+        maxAge: 7 * 24 * 60 * 60 * 1000
     };
 
-    user.password = undefined;
+    const safeUser = user.toObject();
+
+    delete safeUser.password;
+    delete safeUser.verificationCode;
 
     res.cookie("lg", token, cookieOptions);
 
+    console.log("COOKIE SET");
+
     return res.status(statusCode).json({
+        status: "success",
+        message: "Logged in successfully",
         token,
-        user,
+        user: safeUser
     });
 };
 
-// -------------------- REGISTER (SIMPLIFIED - NO EMAIL) --------------------
 const register = async (req, res) => {
     try {
-        const { fullname, email, password } = req.body;
+        const { fullname, email, password } = req.body
 
-        console.log("📝 Registration attempt:", { fullname, email });
-
-        // Validation
         if (!fullname || !email || !password) {
             return res.status(400).json({
-                success: false,
-                message: "Full name, email, and password are required.",
-            });
+                message: "Full name, email, and password are required."
+            })
         }
 
         if (fullname.trim().length < 3) {
             return res.status(400).json({
-                success: false,
-                message: "Full name must be at least 3 characters.",
-            });
+                message: "Full name must be at least 3 characters."
+            })
         }
 
         if (password.length < 6) {
             return res.status(400).json({
-                success: false,
-                message: "Password must be at least 6 characters.",
-            });
+                message: "Password must be at least 6 characters."
+            })
         }
 
-        const normalizedEmail = email.toLowerCase();
+        const normalizedEmail = email.toLowerCase()
 
-        // Check if user exists
-        const existingUser = await User.findOne({ email: normalizedEmail });
+        const existingUser = await User.findOne({ email: normalizedEmail })
+
         if (existingUser) {
             return res.status(409).json({
-                success: false,
-                message: "An account with this email already exists.",
-            });
+                message: "An account with this email already exists."
+            })
         }
 
-        // Create user (auto-verified for now)
         const newUser = await User.create({
-            fullname: fullname.trim(),
+            fullname: fullname.trim(), // Fixed: Don't lowercase fullname
             email: normalizedEmail,
-            password,
-            isVerified: true, // Auto-verify
-        });
+            password
+        })
 
-        console.log("✅ User created successfully:", newUser._id);
+        const code = newUser.createEmailVerificationCode()
 
-        // Remove password from output
-        newUser.password = undefined;
+        await newUser.save({ validateBeforeSave: false })
 
-        return res.status(201).json({
-            success: true,
-            message: "Account created successfully! You can now login.",
-            user: {
-                id: newUser._id,
-                fullname: newUser.fullname,
-                email: newUser.email
-            }
-        });
+        const url = `${req.protocol}://${req.get("host")}/api/v1/auth/verify-email/${code}`
+
+        const html = `
+        <html>
+        <body>
+            <h1>Verify Your Account</h1>
+            <p>Your verification code is:</p>
+            <h2>${code}</h2>
+            <a href="${url}">Click to verify</a>
+        </body>
+        </html>
+        `
+
+        await sendEmail({
+            to: newUser.email,
+            subject: "Verify your ArguMind account",
+            html
+        })
+
+        res.status(201).json({
+            message: "Account created. Check your email to verify your access."
+        })
 
     } catch (e) {
-        console.error("❌ REGISTER ERROR:", e);
+        console.error("Register Error", e)
         return res.status(500).json({
-            success: false,
-            message: "Could not create account. Please try again.",
-            error: e.message // This will help debug
-        });
+            message: "Could not create your account right now."
+        })
     }
-};
+}
 
-// -------------------- VERIFY EMAIL --------------------
 const verifyEmail = async (req, res) => {
-    try {
-        const code = req.params.code || req.query.code;
-        const user = await User.findOne({ verificationCode: code });
+    const code = req.params.code || req.query.code
 
-        if (!user) {
-            return res.status(400).json({
-                message: "Invalid or expired verification code.",
-            });
-        }
+    const user = await User.findOne({ verificationCode: code })
 
-        user.verificationCode = undefined;
-        user.isVerified = true;
-        await user.save({ validateBeforeSave: false });
-
-        return res.status(200).json({
-            message: "Email verified successfully.",
-        });
-    } catch (err) {
-        console.error("VERIFY ERROR:", err);
-        return res.status(500).json({
-            message: "Verification failed.",
-        });
+    if (!user) {
+        return res.status(400).json({ message: "Invalid or expired verification code." })
     }
-};
 
-// -------------------- LOGIN --------------------
+    user.verificationCode = undefined
+    user.isVerified = true
+
+    await user.save({ validateBeforeSave: false })
+
+    res.status(200).json({ message: "Email verified successfully. You can now log in." })
+}
+
 const login = async (req, res) => {
     try {
+        console.log("LOGIN START");
+
         const { email, password } = req.body;
 
-        console.log("🔐 Login attempt:", { email });
+        console.log("BODY OK");
 
         if (!email || !password) {
             return res.status(400).json({
-                message: "Email and password are required.",
+                message: "Email and password are required."
             });
         }
 
+        console.log("BEFORE FINDONE");
+
         const user = await User.findOne({
-            email: email.toLowerCase(),
+            email: email.toLowerCase()
         }).select("+password");
+
+        console.log("AFTER FINDONE");
 
         if (!user) {
             return res.status(401).json({
-                message: "Invalid email or password.",
+                message: "Invalid email or password."
             });
         }
+
+        console.log("USER FOUND");
+
+        if (!user.isVerified) {
+            return res.status(401).json({
+                message: "Please verify your email before logging in."
+            });
+        }
+
+        console.log("BEFORE PASSWORD CHECK");
 
         const isMatch = await user.comparePassword(password);
 
+        console.log("AFTER PASSWORD CHECK");
+
         if (!isMatch) {
             return res.status(401).json({
-                message: "Invalid email or password.",
+                message: "Invalid email or password."
             });
         }
 
-        console.log("✅ Login successful:", user._id);
+        console.log("BEFORE TOKEN");
+
         return createSendToken(user, 200, req, res);
+
     } catch (err) {
         console.error("LOGIN ERROR:", err);
+
         return res.status(500).json({
-            message: "Login failed.",
+            message: "Login failed. Please try again."
         });
     }
 };
 
-// -------------------- GET ME --------------------
 const getMe = async (req, res) => {
     try {
-        const user = await User.findById(req.user.id);
-        const posts = await Post.find({ user: req.user.id }).sort({
-            createdAt: -1,
-        });
+        // FIXED: Use req.user.id (from protect middleware)
+        const user = await User.findById(req.user.id)
+        const usersPosts = await Post.find({
+            user: req.user.id
+        }).sort({ createdAt: -1 })
 
         if (!user) {
             return res.status(404).json({
-                message: "User not found",
-            });
+                message: "User not found"
+            })
         }
 
-        const totalLikes = posts.reduce(
-            (sum, post) => sum + (post.likes?.length || 0),
-            0
-        );
+        const totalLikesReceived = usersPosts.reduce((sum, post) => sum + post.likes.length, 0)
+        const totalDislikesReceived = usersPosts.reduce((sum, post) => sum + post.dislikes.length, 0)
 
-        const totalDislikes = posts.reduce(
-            (sum, post) => sum + (post.dislikes?.length || 0),
-            0
-        );
-
-        user.password = undefined;
-        user.verificationCode = undefined;
+        user.password = undefined
+        user.verificationCode = undefined
 
         return res.status(200).json({
             user,
-            posts,
+            posts: usersPosts,
             stats: {
-                totalPosts: posts.length,
-                totalLikes,
-                totalDislikes,
-            },
-        });
-    } catch (err) {
-        console.error("GETME ERROR:", err);
+                totalPosts: usersPosts.length,
+                totalLikesReceived,
+                totalDislikesReceived
+            }
+        })
+    } catch (e) {
+        console.error("GetMe Error:", e) // Added error logging
         return res.status(500).json({
-            message: "Could not load profile.",
-        });
+            message: "Could not load your profile."
+        })
     }
-};
+}
 
-// -------------------- LOGOUT --------------------
-const logout = (req, res) => {
+const logout = async (req, res) => {
     res.cookie("lg", "", {
         httpOnly: true,
         expires: new Date(0),
@@ -216,7 +229,7 @@ const logout = (req, res) => {
     });
 
     return res.status(200).json({
-        message: "Logged out successfully.",
+        message: "Logged out successfully."
     });
 };
 
@@ -225,5 +238,5 @@ module.exports = {
     verifyEmail,
     login,
     getMe,
-    logout,
-};
+    logout
+}

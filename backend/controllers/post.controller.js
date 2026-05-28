@@ -161,40 +161,10 @@ const dislikePost = async (req, res) => {
     }
 };
 
-// Add this function at the end of the file, before module.exports
-const deletePost = async (req, res) => {
-    try {
-        const post = await Post.findById(req.params.id);
-        
-        if (!post) {
-            return res.status(404).json({ message: "Post not found" });
-        }
-        
-        // Check if user owns the post
-        if (post.user.toString() !== req.user.id) {
-            return res.status(403).json({ message: "You can only delete your own posts" });
-        }
-        
-        // Delete all comments associated with this post
-        await Comment.deleteMany({ post: req.params.id });
-        
-        // Delete the post
-        await Post.findByIdAndDelete(req.params.id);
-        
-        return res.status(200).json({ message: "Post deleted successfully" });
-        
-    } catch (e) {
-        console.error("Delete post error:", e);
-        return res.status(500).json({ message: "Failed to delete post" });
-    }
-}
-
-// Update module.exports
 module.exports = {
     createPost,
     getPosts,
     getSinglePost,
     likePost,
-    dislikePost,
-    deletePost 
+    dislikePost
 };
