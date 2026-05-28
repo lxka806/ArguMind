@@ -1,22 +1,20 @@
-import axions from "axios"
-
+import axios from "axios";
 const API_URL = import.meta.env.VITE_API_URL
 
 
-const API = axions.create({
-    baseURL:`${API_URL}/api/v1`,
-    withCredentials: true
-})
+const API = axios.create({
+    baseURL: `${API_URL}/api/v1`,
+});
 
-
-API.interceptors.request.use((config) => {
+// 🔥 attach token to every request
+API.interceptors.request.use((req) => {
     const token = localStorage.getItem("token");
 
     if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+        req.headers.Authorization = `Bearer ${token}`;
     }
 
-    return config;
+    return req;
 });
 
-export default API
+export default API;

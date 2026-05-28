@@ -11,6 +11,7 @@ import {
     Sparkles,
     TrendingUp
 } from "lucide-react";
+import logo from "../assets/logo.png";
 
 function Sidebar({ isOpen, toggleSidebar, isLoggedIn, setIsLoggedIn }) {
     const navigate = useNavigate();
@@ -47,7 +48,7 @@ function Sidebar({ isOpen, toggleSidebar, isLoggedIn, setIsLoggedIn }) {
                         <>
                             <div className="flex items-center gap-3">
                                 <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#6366F1] to-[#8B5CF6] flex items-center justify-center font-bold text-white shadow-lg">
-                                    A
+                                    <img src={logo} alt="" />
                                 </div>
                                 <h2 className="text-xl font-bold bg-gradient-to-r from-[#6366F1] to-[#8B5CF6] bg-clip-text text-transparent">
                                     ArguMind
@@ -63,7 +64,7 @@ function Sidebar({ isOpen, toggleSidebar, isLoggedIn, setIsLoggedIn }) {
                     ) : (
                         <>
                             <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#6366F1] to-[#8B5CF6] flex items-center justify-center font-bold text-white shadow-lg">
-                                A
+                                <img src="" alt="" />
                             </div>
                             <button
                                 onClick={toggleSidebar}
