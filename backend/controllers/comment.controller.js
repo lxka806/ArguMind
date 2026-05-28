@@ -63,8 +63,47 @@ const getComent = async (req, res) => {
         res.status(500).json({ message: "Failed to load comments."})
     }
 }
+const deleteComment = async (req, res) => {
+    try {
+        const { id } = req.params; // comment id
+
+        const comment = await Comment.findById(id);
+
+        if (!comment) {
+            return res.status(404).json({
+                message: "Comment not found"
+            });
+        }
+
+        // only owner can delete
+        if (comment.user.toString() !== req.user.id) {
+            return res.status(403).json({
+                message: "You cannot delete this comment"
+            });
+        }
+
+        await Comment.findByIdAndDelete(id);
+
+        // remove from post
+        await Post.findByIdAndUpdate(comment.post, {
+            $pull: { comments: id },
+            $inc: { commentsCount: -1 }
+        });
+
+        return res.status(200).json({
+            message: "Comment deleted successfully"
+        });
+
+    } catch (err) {
+        console.error("Delete comment error:", err);
+        return res.status(500).json({
+            message: "Failed to delete comment"
+        });
+    }
+};
 
 module.exports = {
     createComent,
     getComent,
+    deleteComment
 }

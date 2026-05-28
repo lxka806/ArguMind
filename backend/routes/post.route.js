@@ -4,7 +4,8 @@ const { createPost,
         getPosts, 
         getSinglePost,
         likePost, 
-        dislikePost
+        dislikePost,
+        deleteArgument
     } = require("../controllers/post.controller")
 const { protect } = require("../middlewares/auth.middlewares")
 
@@ -14,5 +15,6 @@ postRouter.get("/arguments", getPosts)
 postRouter.get("/arguments/:id", getSinglePost)
 postRouter.post("/:id/like", protect, likePost)
 postRouter.post("/:id/dislike", protect, dislikePost)
+postRouter.delete("/removeargument/:id", protect, deleteArgument);
 
 module.exports = postRouter // export route
